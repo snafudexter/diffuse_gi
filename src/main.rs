@@ -2,12 +2,13 @@
 extern crate glium;
 
 mod camera;
-pub mod teapot;
+mod teapot;
 mod triangle;
+mod model;
 
-use glium::glutin::event_loop;
 use pollster::FutureExt;
 use triangle::Triangle;
+use model::Model;
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
@@ -24,10 +25,12 @@ impl State {
     async fn new(event_loop: &glium::glutin::event_loop::EventLoop<()>) -> Self {
         use glium::{glutin, Surface};
 
-        let wb = glutin::window::WindowBuilder::new().with_inner_size(glutin::dpi::PhysicalSize {
-            width: WIDTH,
-            height: HEIGHT,
-        });
+        let wb = glutin::window::WindowBuilder::new()
+            .with_title("Diffue GI")
+            .with_inner_size(glutin::dpi::PhysicalSize {
+                width: WIDTH,
+                height: HEIGHT,
+            });
         let cb = glutin::ContextBuilder::new()
             .with_gl_profile(glutin::GlProfile::Core)
             .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (4, 6)))
@@ -37,9 +40,8 @@ impl State {
 
         let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
-        let mut camera =
-            camera::Camera::new((0.0, 1.0, 2.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
-        let mut camera_controller = camera::CameraController::new(4.0, 0.6);
+        let camera = camera::Camera::new((0.0, 1.0, 2.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera_controller = camera::CameraController::new(4.0, 0.6);
 
         let projection = camera::Projection::new(WIDTH, HEIGHT, cgmath::Deg(45.0), 0.1, 100.0);
 
@@ -111,9 +113,9 @@ fn main() {
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
         let triangle = Triangle::new(state.get_display_ref());
+        let sponza = Model::new("./Sponza/sponza.obj");
 
         let mut last_render_time = std::time::Instant::now();
-        let mut window_open = true;
 
         event_loop.run(move |event, _, control_flow| {
             let mut redraw = || {
@@ -127,6 +129,7 @@ fn main() {
                         ui.heading(format!("Last render time {:?}", dt.as_micros()));
                         ui.label(format!("FPS {:?}", (1000000.0 / dt.as_micros() as f32)));
                         if ui.button("Quit").clicked() {
+                            println!("clicked");
                             quit = true;
                         }
                     });
@@ -165,25 +168,30 @@ fn main() {
             };
 
             match event {
-                // Platform-dependent event handlers to workaround a winit bug
-                // See: https://github.com/rust-windowing/winit/issues/987
-                // See: https://github.com/rust-windowing/winit/issues/1619
-                glium::glutin::event::Event::MainEventsCleared => state.get_display_ref().gl_window().window().request_redraw(),
+                glium::glutin::event::Event::MainEventsCleared => state
+                    .get_display_ref()
+                    .gl_window()
+                    .window()
+                    .request_redraw(),
                 glium::glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
                 glium::glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
 
                 glium::glutin::event::Event::DeviceEvent {
-                    event: glium::glutin::event::DeviceEvent::MouseMotion{ delta, },
-                    .. // We're not using device_id currently
-                } => if state.mouse_pressed {
-                    state.camera_controller.process_mouse(delta.0, delta.1)
+                    event: glium::glutin::event::DeviceEvent::MouseMotion { delta },
+                    ..
+                } => {
+                    if state.mouse_pressed {
+                        state.camera_controller.process_mouse(delta.0, delta.1)
+                    }
                 }
 
                 glium::glutin::event::Event::WindowEvent { ref event, .. }
                     if !state.input(event) =>
                 {
-                    use glium::glutin::event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
-                    
+                    use glium::glutin::event::{
+                        ElementState, KeyboardInput, VirtualKeyCode, WindowEvent,
+                    };
+
                     match event {
                         WindowEvent::CloseRequested
                         | WindowEvent::KeyboardInput {
@@ -203,7 +211,7 @@ fn main() {
                         }
                         _ => {}
                     }
-                    
+
                     if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
                         *control_flow = glium::glutin::event_loop::ControlFlow::Exit;
                     }
@@ -227,63 +235,6 @@ fn main() {
                 }
                 _ => (),
             }
-            // let mut redraw = || {
-            //     let now = std::time::Instant::now();
-            //     let dt = now - last_render_time;
-            //     last_render_time = now;
-            //     // println!("millis {:?}", dt.as_micros());
-
-            //     egui_glium.run(&display, |egui_ctx| {
-            //         egui::Window::new("my_side_panel")
-            //             .open(&mut window_open)
-            //             .resizable(true)
-            //             .show(egui_ctx, |ui| {
-            //                 ui.heading(format!("Last render time {:?}", dt.as_micros()));
-            //                 ui.label(format!("FPS {:?}", (1000000.0 / dt.as_micros() as f32)));
-            //                 if ui.button("Quit").clicked() {
-            //                     println!("clicked quit");
-            //                     *control_flow = glutin::event_loop::ControlFlow::Exit;
-            //                 }
-            //             });
-            //     });
-
-            //     camera_controller.update_camera(&mut camera, dt);
-            //     let mut target = display.draw();
-            //     target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
-            //     triangle.draw(&mut target, &camera, &projection);
-            //     egui_glium.paint(&display, &mut target);
-            //     target.finish().unwrap();
-            // };
-
-            // *control_flow = glutin::event_loop::ControlFlow::Poll;
-            // match event {
-            //    glutin::event::Event::MainEventsCleared => display.gl_window().window().request_redraw(),
-            //    glutin::event::Event::DeviceEvent {
-            //         event: glutin::event::DeviceEvent::MouseMotion{ delta, },
-            //         .. // We're not using device_id currently
-            //     } => if true { // state.mouse_pressed
-            //         camera_controller.process_mouse(delta.0, delta.1)
-            //     }
-            //     glutin::event::Event::WindowEvent {
-            //         ref event,
-            //         window_id,
-            //     } => {
-            //              match event {
-            //             glutin::event::WindowEvent::CloseRequested
-            //             | glutin::event::WindowEvent::KeyboardInput {
-            //                  input:
-            //                     glutin::event::KeyboardInput {
-            //                         state: glutin::event::ElementState::Pressed,
-            //                         virtual_keycode: Some(glutin::event::VirtualKeyCode::Escape),
-            //                         ..
-            //                     },
-            //                 ..
-            //             } => *control_flow = glutin::event_loop::ControlFlow::Exit,
-            //             _ => {}
-            //         }
-            //     }
-            //     _ => {}
-            // }
         });
     };
 
