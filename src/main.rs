@@ -2,13 +2,9 @@
 extern crate glium;
 
 mod camera;
-mod teapot;
-mod triangle;
 mod model;
-
-use pollster::FutureExt;
-use triangle::Triangle;
 use model::Model;
+use pollster::FutureExt;
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
@@ -40,8 +36,8 @@ impl State {
 
         let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
-        let camera = camera::Camera::new((0.0, 1.0, 2.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
-        let camera_controller = camera::CameraController::new(4.0, 0.6);
+        let camera = camera::Camera::new((0.0, 0.1, 0.3), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera_controller = camera::CameraController::new(2.0, 0.3);
 
         let projection = camera::Projection::new(WIDTH, HEIGHT, cgmath::Deg(45.0), 0.1, 100.0);
 
@@ -112,8 +108,7 @@ fn main() {
 
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
-        let triangle = Triangle::new(state.get_display_ref());
-        let sponza = Model::new("./Sponza/sponza.obj");
+        let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
 
         let mut last_render_time = std::time::Instant::now();
 
@@ -128,6 +123,7 @@ fn main() {
                     egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
                         ui.heading(format!("Last render time {:?}", dt.as_micros()));
                         ui.label(format!("FPS {:?}", (1000000.0 / dt.as_micros() as f32)));
+                        ui.label(format!("Camera {:?}", &state.camera.position));
                         if ui.button("Quit").clicked() {
                             println!("clicked");
                             quit = true;
@@ -157,8 +153,8 @@ fn main() {
                     target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
 
                     // draw things behind egui here
-                    triangle.draw(&mut target, &state.camera, &state.projection);
-
+                    //triangle.draw(&mut target, &state.camera, &state.projection);
+                    sponza.draw(&mut target, &state.camera, &state.projection);
                     egui_glium.paint(state.get_display_ref(), &mut target);
 
                     // draw things on top of egui here
