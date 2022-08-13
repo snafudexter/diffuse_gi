@@ -1,5 +1,6 @@
-use glium::Display;
-use obj::Obj;
+use glium::{texture::RawImage2d, Display};
+use image::{self, GenericImageView};
+use obj::{Mtl, Obj};
 
 use crate::camera::{Camera, Projection};
 
@@ -13,7 +14,7 @@ implement_vertex!(Vertex, position, tex_coord, normal);
 
 struct MeshObject {
     vertices: glium::VertexBuffer<Vertex>,
-    indices: glium::IndexBuffer<u16>,
+    diffuse_texture: glium::texture::SrgbTexture2d,
 }
 
 pub struct Model {
@@ -25,7 +26,16 @@ impl Model {
     pub fn new(path: &str, display: &Display) -> Self {
         use std::time::Instant;
         let now = Instant::now();
-        let obj = Obj::load(path).unwrap();
+        let mut obj = Obj::load(path).unwrap();
+        obj.load_mtls().unwrap();
+
+        let mut materials: Vec<&std::sync::Arc<obj::Material>> = vec![];
+
+        for mtl in obj.data.material_libs.iter() {
+            for material in mtl.materials.iter() {
+                materials.push(material);
+            }
+        }
 
         let mut objects: Vec<MeshObject> = vec![];
 
@@ -34,7 +44,6 @@ impl Model {
                 let mut positions: Vec<[f32; 3]> = vec![];
                 let mut tex_coords: Vec<[f32; 2]> = vec![];
                 let mut normals: Vec<[f32; 3]> = vec![];
-                let mut indices: Vec<u16> = vec![];
 
                 for obj::SimplePolygon(poly) in group.polys {
                     for vertex in poly {
@@ -49,38 +58,42 @@ impl Model {
 
                         let vertex_position: [f32; 3] = obj.data.position[v_index];
 
-                        let stored_vertex_index_option =
-                            positions.iter().position(|&r| r == vertex_position);
+                        positions.push(vertex_position);
+                        tex_coords.push(obj.data.texture[vt_index]);
+                        normals.push([0f32, 0f32, 0f32]);
 
-                        match stored_vertex_index_option {
-                            Some(index) => indices.push(index as u16),
-                            None => {
-                                positions.push(vertex_position);
-                                tex_coords.push(obj.data.texture[vt_index]);
-                                normals.push([0f32, 0f32, 0f32]); //(obj.data.normal[vn_index]);
-                                indices.push(positions.len() as u16 - 1);
-                            }
-                        }
+                        // let stored_vertex_index_option =
+                        //     positions.iter().position(|&r| r == vertex_position);
+
+                        // match stored_vertex_index_option {
+                        //     Some(index) => indices.push(index as u16),
+                        //     None => {
+                        //         positions.push(vertex_position);
+                        //         tex_coords.push(obj.data.texture[vt_index]);
+                        //         normals.push([0f32, 0f32, 0f32]); //(obj.data.normal[vn_index]);
+                        //         indices.push(positions.len() as u16 - 1);
+                        //     }
+                        // }
                     }
                 }
 
-                for index in (0..indices.len()).step_by(3) {
-                    let va = positions[indices[index as usize] as usize];
-                    let vb = positions[indices[index as usize + 1] as usize];
-                    let vc = positions[indices[index as usize + 2] as usize];
+                for index in (0..positions.len()).step_by(3) {
+                    let va = positions[index as usize];
+                    let vb = positions[index as usize + 1];
+                    let vc = positions[index as usize + 2];
 
-                    let A = cgmath::Vector3::new(va[0], va[1], va[2]);
-                    let B = cgmath::Vector3::new(vb[0], vb[1], vb[2]);
-                    let C = cgmath::Vector3::new(vc[0], vc[1], vc[2]);
+                    let a = cgmath::Vector3::new(va[0], va[1], va[2]);
+                    let b = cgmath::Vector3::new(vb[0], vb[1], vb[2]);
+                    let c = cgmath::Vector3::new(vc[0], vc[1], vc[2]);
 
-                    let edgeAB = B - A;
-                    let edgeAC = C - A;
+                    let edgeAB = b - a;
+                    let edgeAC = c - a;
 
                     let areaWeightedNormal = edgeAB.cross(edgeAC);
 
-                    let normalA = normals[indices[index as usize] as usize];
-                    let normalB = normals[indices[index as usize + 1] as usize];
-                    let normalC = normals[indices[index as usize + 2] as usize];
+                    let normalA = normals[index as usize];
+                    let normalB = normals[index as usize + 1];
+                    let normalC = normals[index as usize + 2];
 
                     let mut AN = cgmath::Vector3::new(normalA[0], normalA[1], normalA[2]);
                     let mut BN = cgmath::Vector3::new(normalB[0], normalB[1], normalB[2]);
@@ -90,9 +103,9 @@ impl Model {
                     BN += areaWeightedNormal;
                     CN += areaWeightedNormal;
 
-                    normals[indices[index as usize] as usize] = [AN.x, AN.y, AN.z];
-                    normals[indices[index as usize + 1] as usize] = [BN.x, BN.y, BN.z];
-                    normals[indices[index as usize + 2] as usize] = [CN.x, CN.y, CN.z];
+                    normals[index as usize] = [AN.x, AN.y, AN.z];
+                    normals[index as usize + 1] = [BN.x, BN.y, BN.z];
+                    normals[index as usize + 2] = [CN.x, CN.y, CN.z];
                 }
 
                 let vertices: Vec<Vertex> = positions
@@ -105,14 +118,37 @@ impl Model {
                     })
                     .collect();
 
+               
+                let mut diffuse_texture = glium::texture::SrgbTexture2d::empty(display, 2, 2).unwrap();
+                let base_path = "./Sponza/".to_owned();
+
+                match group.material.unwrap() {
+                    obj::ObjMaterial::Ref(_) => todo!(),
+                    obj::ObjMaterial::Mtl(material) => {
+                        match material.map_kd.as_ref() {
+                            Some(diffuse_path) => {
+                                let diffuse_path = base_path + diffuse_path;
+                                let diffuse_image = image::io::Reader::open(diffuse_path)
+                                    .unwrap()
+                                    .decode()
+                                    .unwrap();
+                                let raw_image =
+                                    glium::texture::RawImage2d::from_raw_rgba_reversed(
+                                        &diffuse_image.to_rgba8(),
+                                        diffuse_image.dimensions(),
+                                    );
+                                diffuse_texture =
+                                    glium::texture::SrgbTexture2d::new(display, raw_image)
+                                        .unwrap();
+                            }
+                            None => {}
+                        };
+                    }
+                };
+
                 let object: MeshObject = MeshObject {
                     vertices: glium::VertexBuffer::new(display, &vertices).unwrap(),
-                    indices: glium::IndexBuffer::new(
-                        display,
-                        glium::index::PrimitiveType::TrianglesList,
-                        &indices,
-                    )
-                    .unwrap(),
+                    diffuse_texture,
                 };
 
                 objects.push(object);
@@ -122,84 +158,89 @@ impl Model {
         let elapsed = now.elapsed();
         println!("Elapsed: {:.2?}", elapsed);
 
-        let vertex_shader_src = r#"
+        let vertex_shader_src = std::fs::read_to_string("./basic.vert").unwrap();
 
-            #version 460
-
-            uniform mat4 camera;
-            uniform mat4 model;
-
-            in vec3 position;
-            in vec2 tex_coord;
-            in vec3 normal;
-
-            out vec3 fragVert;
-            out vec2 fragTexCoord;
-            out vec3 fragNormal;
-
-            void main() {
-                // Pass some variables to the fragment shader
-                fragTexCoord = tex_coord;
-                fragNormal = normal;
-                fragVert = position;
-                
-                // Apply all matrix transformations to vert
-                gl_Position = camera * model * vec4(position, 1);
-            }
-        "#;
-
-        let fragment_shader_src = r#"
-
-            #version 460
-        
-            uniform mat4 model;
-            uniform sampler2D tex;
-
-            uniform vec3 l_position;
-            uniform vec3 l_intensities;
-
-            in vec2 fragTexCoord;
-            in vec3 fragNormal;
-            in vec3 fragVert;
-
-            out vec4 finalColor;
-
-            void main() {
-                //calculate normal in world coordinates
-                mat3 normalMatrix = transpose(inverse(mat3(model)));
-                vec3 normal = normalize(normalMatrix * fragNormal);
-                
-                //calculate the location of this fragment (pixel) in world coordinates
-                vec3 fragPosition = vec3(model * vec4(fragVert, 1));
-                
-                //calculate the vector from this pixels surface to the light source
-                vec3 surfaceToLight = l_position - fragPosition;
-
-                //calculate the cosine of the angle of incidence
-                float brightness = dot(normal, surfaceToLight) / (length(surfaceToLight) * length(normal));
-                brightness = clamp(brightness, 0, 1);
-
-                //calculate final color of the pixel, based on:
-                // 1. The angle of incidence: brightness
-                // 2. The color/intensities of the light: light.intensities
-                // 3. The texture and texture coord: texture(tex, fragTexCoord)
-                // vec4 surfaceColor = texture(tex, fragTexCoord);
-                finalColor = vec4(brightness * l_intensities, 1.0); //* surfaceColor.rgb, surfaceColor.a);
-            }
-
-        "#;
+        let fragment_shader_src = std::fs::read_to_string("./basic.frag").unwrap();
 
         let program =
-            glium::Program::from_source(display, vertex_shader_src, fragment_shader_src, None)
+            glium::Program::from_source(display, &vertex_shader_src, &fragment_shader_src, None)
                 .unwrap();
 
         Self { objects, program }
     }
 
-    pub fn draw(&self, frame: &mut glium::Frame, camera: &Camera, projection: &Projection) {
+    pub fn draw_shadows(
+        &self,
+        display: &glium::Display,
+        target: &mut glium::framebuffer::SimpleFrameBuffer,
+        depth_mvp: &[[f32; 4]; 4],
+    ) {
+        let mut draw_params: glium::draw_parameters::DrawParameters<'_> = Default::default();
+        draw_params.depth = glium::Depth {
+            test: glium::draw_parameters::DepthTest::IfLessOrEqual,
+            write: true,
+            ..Default::default()
+        };
+        draw_params.backface_culling = glium::BackfaceCullingMode::CullCounterClockwise;
+
+        let shadow_map_shaders = glium::Program::from_source(
+            display,
+            // Vertex Shader
+            "
+                #version 330 core
+                layout (location = 0) in vec3 position;
+                uniform mat4 depth_mvp;
+                uniform mat4 model;
+                void main() {
+                  gl_Position = depth_mvp * model *  vec4(position,1.0);
+                }
+            ",
+            // Fragement Shader
+            "
+                #version 330 core
+                layout(location = 0) out float fragmentdepth;
+                void main(){
+                    fragmentdepth = gl_FragCoord.z;
+                }
+            ",
+            None,
+        )
+        .unwrap();
+
+        let model: [[f32; 4]; 4] = cgmath::Matrix4::from_translation(cgmath::Vector3 {
+            x: 0.,
+            y: 0.,
+            z: 0.,
+        })
+        .into();
+
         use glium::Surface;
 
-        let params = glium::DrawParameters {
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+        for object in self.objects.iter() {
+            target
+                .draw(
+                    &object.vertices,
+                    &indices,
+                    &shadow_map_shaders,
+                    &uniform! {model: model, depth_mvp: *depth_mvp},
+                    &draw_params,
+                )
+                .unwrap();
+        }
+    }
+
+    pub fn draw(
+        &self,
+        frame: &mut glium::Frame,
+        view_proj: &[[f32; 4]; 4],
+        shadowMap: &glium::texture::DepthTexture2d,
+        depthBiasMatrix: &[[f32; 4]; 4],
+        light_loc: &[f32; 3],
+    ) {
+        use glium::Surface;
+
+        let mut params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLess,
                 write: true,
@@ -208,27 +249,30 @@ impl Model {
             ..Default::default()
         };
 
-        let view_proj: [[f32; 4]; 4] = (projection.calc_matrix() * camera.calc_matrix()).into();
+        params.backface_culling = glium::BackfaceCullingMode::CullClockwise;
 
         // #[derive(Copy, Clone)]
         // struct Light {
         //     position: [f32; 3],
         //     intensities: [f32; 3],
         // }
-
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
         for object in self.objects.iter() {
             frame
                 .draw(
                     &object.vertices,
-                    &object.indices,
+                    &indices,
                     &self.program,
                     &uniform! {model: [
                         [0.01, 0.0, 0.0, 0.0],
                         [0.0, 0.01, 0.0, 0.0],
                         [0.0, 0.0, 0.01, 0.0],
                         [0.0, 0.0, 0.0, 1.0f32]
-                    ], l_position: [-1.0, 20.4, -3.9f32],
-                    l_intensities: [1.0f32, 1.0f32, 1.0f32], camera: view_proj},
+                    ], l_position: *light_loc,
+                    shadowMap: glium::uniforms::Sampler::new(shadowMap)
+                    .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
+                    .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest),
+                    l_intensities: [1.0f32, 1.0f32, 1.0f32], camera: *view_proj, depthBiasMatrix: *depthBiasMatrix, tex: &object.diffuse_texture},
                     &params,
                 )
                 .unwrap();
