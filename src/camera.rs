@@ -1,8 +1,8 @@
 use cgmath::*;
-use std::f32::consts::FRAC_PI_2;
-use std::time::Duration;
 use glium::glutin::dpi::PhysicalPosition;
 use glium::glutin::event::*;
+use std::f32::consts::FRAC_PI_2;
+use std::time::Duration;
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 
@@ -11,6 +11,7 @@ pub struct Camera {
     pub position: Point3<f32>,
     yaw: Rad<f32>,
     pitch: Rad<f32>,
+    projection: Projection,
 }
 
 impl Camera {
@@ -18,15 +19,22 @@ impl Camera {
         position: V,
         yaw: Y,
         pitch: P,
+        width: u32,
+        height: u32,
+        fov: f32,
+        znear: f32,
+        zfar: f32,
     ) -> Self {
+        let projection = Projection::new(width, height, cgmath::Deg(45.0), 0.1, 100.0);
         Self {
             position: position.into(),
             yaw: yaw.into(),
             pitch: pitch.into(),
+            projection,
         }
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
+    pub fn get_view_matrix(&self) -> Matrix4<f32> {
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
 
@@ -35,6 +43,10 @@ impl Camera {
             Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
             Vector3::unit_y(),
         )
+    }
+
+    pub fn get_projection_matrix(&self) -> Matrix4<f32> {
+        self.projection.calc_matrix()
     }
 }
 
@@ -96,7 +108,11 @@ impl CameraController {
         }
     }
 
-    pub fn process_keyboard(&mut self, key: glium::glutin::event::VirtualKeyCode, state: ElementState) -> bool {
+    pub fn process_keyboard(
+        &mut self,
+        key: glium::glutin::event::VirtualKeyCode,
+        state: ElementState,
+    ) -> bool {
         let amount = if state == ElementState::Pressed {
             1.0
         } else {
