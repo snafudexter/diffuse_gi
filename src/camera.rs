@@ -25,7 +25,7 @@ impl Camera {
         znear: f32,
         zfar: f32,
     ) -> Self {
-        let projection = Projection::new(width, height, cgmath::Deg(45.0), 0.1, 100.0);
+        let projection = Projection::new(width, height, cgmath::Deg(fov), 0.1, 100.0);
         Self {
             position: position.into(),
             yaw: yaw.into(),
@@ -48,8 +48,13 @@ impl Camera {
     pub fn get_projection_matrix(&self) -> Matrix4<f32> {
         self.projection.calc_matrix()
     }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.projection.resize(width, height)
+    }
 }
 
+#[derive(Debug)]
 pub struct Projection {
     aspect: f32,
     fovy: Rad<f32>,

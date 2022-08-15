@@ -1,4 +1,4 @@
-use glium::{texture::RawImage2d, Display};
+use glium::{buffer, texture::RawImage2d, Display};
 use image::{self, GenericImageView};
 use obj::{Mtl, Obj};
 
@@ -57,7 +57,7 @@ impl Model {
 
                         positions.push(vertex_position);
                         tex_coords.push(obj.data.texture[vt_index]);
-                        normals.push([0f32, 0f32, 0f32]);
+                        normals.push(obj.data.normal[vn_index]); //([0f32, 0f32, 0f32]);
 
                         // let stored_vertex_index_option =
                         //     positions.iter().position(|&r| r == vertex_position);
@@ -74,36 +74,36 @@ impl Model {
                     }
                 }
 
-                for index in (0..positions.len()).step_by(3) {
-                    let va = positions[index as usize];
-                    let vb = positions[index as usize + 1];
-                    let vc = positions[index as usize + 2];
+                // for index in (0..positions.len()).step_by(3) {
+                //     let va = positions[index as usize];
+                //     let vb = positions[index as usize + 1];
+                //     let vc = positions[index as usize + 2];
 
-                    let a = cgmath::Vector3::new(va[0], va[1], va[2]);
-                    let b = cgmath::Vector3::new(vb[0], vb[1], vb[2]);
-                    let c = cgmath::Vector3::new(vc[0], vc[1], vc[2]);
+                //     let a = cgmath::Vector3::new(va[0], va[1], va[2]);
+                //     let b = cgmath::Vector3::new(vb[0], vb[1], vb[2]);
+                //     let c = cgmath::Vector3::new(vc[0], vc[1], vc[2]);
 
-                    let edgeAB = b - a;
-                    let edgeAC = c - a;
+                //     let edgeAB = b - a;
+                //     let edgeAC = c - a;
 
-                    let areaWeightedNormal = edgeAB.cross(edgeAC);
+                //     let areaWeightedNormal = edgeAB.cross(edgeAC);
 
-                    let normalA = normals[index as usize];
-                    let normalB = normals[index as usize + 1];
-                    let normalC = normals[index as usize + 2];
+                //     let normalA = normals[index as usize];
+                //     let normalB = normals[index as usize + 1];
+                //     let normalC = normals[index as usize + 2];
 
-                    let mut AN = cgmath::Vector3::new(normalA[0], normalA[1], normalA[2]);
-                    let mut BN = cgmath::Vector3::new(normalB[0], normalB[1], normalB[2]);
-                    let mut CN = cgmath::Vector3::new(normalC[0], normalC[1], normalC[2]);
+                //     let mut AN = cgmath::Vector3::new(normalA[0], normalA[1], normalA[2]);
+                //     let mut BN = cgmath::Vector3::new(normalB[0], normalB[1], normalB[2]);
+                //     let mut CN = cgmath::Vector3::new(normalC[0], normalC[1], normalC[2]);
 
-                    AN += areaWeightedNormal;
-                    BN += areaWeightedNormal;
-                    CN += areaWeightedNormal;
+                //     AN += areaWeightedNormal;
+                //     BN += areaWeightedNormal;
+                //     CN += areaWeightedNormal;
 
-                    normals[index as usize] = [AN.x, AN.y, AN.z];
-                    normals[index as usize + 1] = [BN.x, BN.y, BN.z];
-                    normals[index as usize + 2] = [CN.x, CN.y, CN.z];
-                }
+                //     normals[index as usize] = [AN.x, AN.y, AN.z];
+                //     normals[index as usize + 1] = [BN.x, BN.y, BN.z];
+                //     normals[index as usize + 2] = [CN.x, CN.y, CN.z];
+                // }
 
                 let vertices: Vec<Vertex> = positions
                     .iter()
@@ -215,10 +215,12 @@ impl Model {
 
     pub fn draw(
         &self,
+        display: &glium::Display,
         frame: &mut glium::Frame,
-        draw_params: glium::DrawParameters,
+        draw_params: &glium::DrawParameters,
         program: &glium::Program,
         view_proj: &[[f32; 4]; 4],
+        light_position: &[f32; 3],
     ) {
         use glium::Surface;
         let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
@@ -231,7 +233,9 @@ impl Model {
                     [0.0, 0.0, 0.01, 0.0],
                     [0.0, 0.0, 0.0, 1.0f32]
                 ],
-                l_intensities: [1.0f32, 1.0f32, 1.0f32],
+                LightColor: [1.0f32, 1.0f32, 1.0f32],
+                AmbientIntensity: 0.01f32,
+                LightPosition: *light_position,
                 view_proj: *view_proj,
                 tex: &object.diffuse_texture
             };

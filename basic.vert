@@ -1,26 +1,21 @@
-#version 460
+#version 410
 
-uniform mat4 camera;
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec2 tex_coord;
+layout(location = 2) in vec3 normal;
+
+uniform mat4 view_proj;
 uniform mat4 model;
-uniform mat4 depthBiasMatrix;
 
-
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 tex_coord;
-layout (location = 2) in vec3 normal;
-
-out vec3 fragVert;
+out vec3 surfaceNormal;
 out vec2 fragTexCoord;
-out vec3 fragNormal;
-out vec4 fragPosLightSpace;
+out vec4 worldPos;
 
 void main() {
-                // Pass some variables to the fragment shader
-    fragTexCoord = tex_coord;
-    fragNormal = normal;
-    fragVert = position;
-    fragPosLightSpace = depthBiasMatrix * vec4(fragVert, 1.0);
 
-                // Apply all matrix transformations to vert
-    gl_Position = camera * model * vec4(position, 1);
+    fragTexCoord = tex_coord;
+
+    worldPos = model * vec4(position, 1);
+    surfaceNormal = (model * vec4(normal, 0.0)).xyz;
+    gl_Position = view_proj * worldPos;
 }

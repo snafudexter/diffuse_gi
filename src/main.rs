@@ -1,20 +1,18 @@
 #[macro_use]
 extern crate glium;
 
-mod renderer;
 mod camera;
 mod model;
-mod model_render_system;;
+mod model_render_system;
+mod renderer;
 
 use glium::texture::SrgbTexture2d;
-use glium::GlObject;
+use glium::{GlObject, Surface};
 use model::Model;
 use pollster::FutureExt;
 
-use egui_extras::RetainedImage;
-
-const WIDTH: u32 = 1280;
-const HEIGHT: u32 = 720;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 1200;
 
 struct State {
     display: glium::Display,
@@ -42,7 +40,16 @@ impl State {
 
         let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
-        let camera = camera::Camera::new((-10.0, 7.0, 1.2), cgmath::Deg(-10f32), cgmath::Deg(0.0),WIDTH, HEIGHT, cgmath::Deg(45.0), 0.1, 100.0);
+        let camera = camera::Camera::new(
+            (-10.0, 7.0, 1.2),
+            cgmath::Deg(-10f32),
+            cgmath::Deg(0.0),
+            WIDTH,
+            HEIGHT,
+            45.0,
+            0.1,
+            100.0,
+        );
         let camera_controller = camera::CameraController::new(2.0, 0.6);
 
         Self {
@@ -78,7 +85,7 @@ impl State {
                 true
             }
             glium::glutin::event::WindowEvent::MouseInput {
-                button: glium::glutin::event::MouseButton::Middle,
+                button: glium::glutin::event::MouseButton::Left,
                 state,
                 ..
             } => {
@@ -92,7 +99,7 @@ impl State {
     fn resize(&mut self, new_size: glium::glutin::dpi::PhysicalSize<u32>) {
         // UPDATED!
         if new_size.width > 0 && new_size.height > 0 {
-            self.projection.resize(new_size.width, new_size.height);
+            self.camera.resize(new_size.width, new_size.height);
             // self.size = new_size;
             // self.config.width = new_size.width;
             // self.config.height = new_size.height;
@@ -113,7 +120,8 @@ fn main() {
 
         let shadow_texture =
             glium::texture::DepthTexture2d::empty(state.get_display_ref(), 1024, 1024).unwrap();
-        let shadow_cubemap = glium::texture::DepthCubemap::empty(state.get_display_ref(), 1024).unwrap();
+        let shadow_cubemap =
+            glium::texture::DepthCubemap::empty(state.get_display_ref(), 1024).unwrap();
 
         let shadow_texture_to_render = unsafe {
             SrgbTexture2d::from_id(
@@ -134,6 +142,8 @@ fn main() {
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
         let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
+
+        let models = vec![sponza];
 
         let mut last_render_time = std::time::Instant::now();
 
@@ -156,13 +166,13 @@ fn main() {
                     (elapsed_dur.as_secs() as f64) + (elapsed_dur.subsec_nanos() as f64) * 1e-9;
                 start = std::time::Instant::now();
 
-                // light_t += secs * 0.5;
+                light_t += secs * 0.5;
 
-                // let light_loc = {
-                //     let x = 8.0 * light_t.cos();
-                //     let z = 1.0 * light_t.sin();
-                //     [x as f32, 5.0, z as f32]
-                // };
+                let light_loc = {
+                    let x = 8.0 * light_t.cos();
+                    let z = 1.0 * light_t.sin();
+                    [x as f32, 20.0, z as f32]
+                };
 
                 let repaint_after = egui_glium.run(state.get_display_ref(), |egui_ctx| {
                     egui::Window::new("Shadow map")
@@ -200,10 +210,25 @@ fn main() {
                 {
                     state.update(dt);
 
-                    // draw things behind egui here
+                    use glium::Surface;
 
+                    // draw things behind egui here
+                    let mut target = state.get_display_ref().draw();
+
+                    let color = egui::Rgba::from_rgb(0.53, 0.81, 0.92);
+                    target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
+
+                    renderer.render_scene(
+                        state.get_display_ref(),
+                        &mut target,
+                        &state.camera,
+                        &models,
+                        &light_loc.into(),
+                    );
 
                     egui_glium.paint(state.get_display_ref(), &mut target);
+
+                    target.finish().unwrap();
 
                     // draw things on top of egui here
                 }
@@ -227,8 +252,9 @@ fn main() {
                     }
                 }
 
-                glium::glutin::event::Event::WindowEvent { ref event, .. } if !state.input(event) => {
-                    
+                glium::glutin::event::Event::WindowEvent { ref event, .. }
+                    if !state.input(event) =>
+                {
                     use glium::glutin::event::{
                         ElementState, KeyboardInput, VirtualKeyCode, WindowEvent,
                     };

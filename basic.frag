@@ -1,20 +1,32 @@
-#version 460
+#version 410
 
-uniform mat4 model;
+layout(std140) uniform;
+
 uniform sampler2D tex;
-uniform sampler2D shadowMap;
 
-uniform vec3 l_position;
-uniform vec3 l_intensities;
+uniform vec3 LightColor;
+uniform float AmbientIntensity;
+uniform float DiffuseIntensity;
 
 in vec2 fragTexCoord;
-in vec3 fragNormal;
-in vec3 fragVert;
-in vec4 fragPosLightSpace;
+in vec3 surfaceNormal;
+in vec4 worldPos;
+uniform vec3 LightPosition;
 
 out vec4 finalColor;
 
-
 void main() {
-    finalColor = texture(tex, fragTexCoord);
+    vec4 AmbientColor = vec4(LightColor, 1.0f) *
+        AmbientIntensity;
+
+    vec3 toLightVector = LightPosition - worldPos.xyz;
+    vec3 unitNormal = normalize(surfaceNormal);
+    vec3 unitLightPosition = normalize(toLightVector);
+
+    float nDotL = dot(unitNormal, unitLightPosition);
+    float brightness = max(nDotL, 0.0);
+
+    vec4 DiffuseColor = vec4(LightColor, 1.0f) * brightness;
+
+    finalColor =  texture(tex, fragTexCoord) * (AmbientColor + DiffuseColor);
 }
