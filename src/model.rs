@@ -1,8 +1,6 @@
-use glium::{buffer, texture::RawImage2d, Display};
+use glium::Display;
 use image::{self, GenericImageView};
-use obj::{Mtl, Obj};
-
-use crate::camera::{Camera, Projection};
+use obj::Obj;
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
@@ -12,9 +10,19 @@ pub struct Vertex {
 }
 implement_vertex!(Vertex, position, tex_coord, normal);
 
-struct MeshObject {
+pub struct MeshObject {
     vertices: glium::VertexBuffer<Vertex>,
     diffuse_texture: glium::texture::SrgbTexture2d,
+}
+
+impl MeshObject {
+    pub fn get_vertices(&self) -> &glium::VertexBuffer<Vertex> {
+        &self.vertices
+    }
+
+    pub fn get_diffuse_texture(&self) -> &glium::texture::SrgbTexture2d {
+        &self.diffuse_texture
+    }
 }
 
 pub struct Model {
@@ -58,19 +66,6 @@ impl Model {
                         positions.push(vertex_position);
                         tex_coords.push(obj.data.texture[vt_index]);
                         normals.push(obj.data.normal[vn_index]); //([0f32, 0f32, 0f32]);
-
-                        // let stored_vertex_index_option =
-                        //     positions.iter().position(|&r| r == vertex_position);
-
-                        // match stored_vertex_index_option {
-                        //     Some(index) => indices.push(index as u16),
-                        //     None => {
-                        //         positions.push(vertex_position);
-                        //         tex_coords.push(obj.data.texture[vt_index]);
-                        //         normals.push([0f32, 0f32, 0f32]); //(obj.data.normal[vn_index]);
-                        //         indices.push(positions.len() as u16 - 1);
-                        //     }
-                        // }
                     }
                 }
 
@@ -152,97 +147,7 @@ impl Model {
         Self { objects }
     }
 
-    // pub fn draw_shadows(
-    //     &self,
-    //     display: &glium::Display,
-    //     target: &mut glium::framebuffer::SimpleFrameBuffer,
-    //     depth_mvp: &[[f32; 4]; 4],
-    // ) {
-    //     let mut draw_params: glium::draw_parameters::DrawParameters<'_> = Default::default();
-    //     draw_params.depth = glium::Depth {
-    //         test: glium::draw_parameters::DepthTest::IfLessOrEqual,
-    //         write: true,
-    //         ..Default::default()
-    //     };
-    //     draw_params.backface_culling = glium::BackfaceCullingMode::CullCounterClockwise;
-
-    //     let shadow_map_shaders = glium::Program::from_source(
-    //         display,
-    //         // Vertex Shader
-    //         "
-    //             #version 330 core
-    //             layout (location = 0) in vec3 position;
-    //             uniform mat4 depth_mvp;
-    //             uniform mat4 model;
-    //             void main() {
-    //               gl_Position = depth_mvp * model *  vec4(position,1.0);
-    //             }
-    //         ",
-    //         // Fragement Shader
-    //         "
-    //             #version 330 core
-    //             layout(location = 0) out float fragmentdepth;
-    //             void main(){
-    //                 fragmentdepth = gl_FragCoord.z;
-    //             }
-    //         ",
-    //         None,
-    //     )
-    //     .unwrap();
-
-    //     let model: [[f32; 4]; 4] = cgmath::Matrix4::from_translation(cgmath::Vector3 {
-    //         x: 0.,
-    //         y: 0.,
-    //         z: 0.,
-    //     })
-    //     .into();
-
-    //     use glium::Surface;
-
-    //     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
-    //     for object in self.objects.iter() {
-    //         target
-    //             .draw(
-    //                 &object.vertices,
-    //                 &indices,
-    //                 &shadow_map_shaders,
-    //                 &uniform! {model: model, depth_mvp: *depth_mvp},
-    //                 &draw_params,
-    //             )
-    //             .unwrap();
-    //     }
-    // }
-
-    pub fn draw(
-        &self,
-        display: &glium::Display,
-        frame: &mut glium::Frame,
-        draw_params: &glium::DrawParameters,
-        program: &glium::Program,
-        view_proj: &[[f32; 4]; 4],
-        light_position: &[f32; 3],
-    ) {
-        use glium::Surface;
-        let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
-
-        for object in self.objects.iter() {
-            let uniforms = &uniform! {
-                model: [
-                    [0.01, 0.0, 0.0, 0.0],
-                    [0.0, 0.01, 0.0, 0.0],
-                    [0.0, 0.0, 0.01, 0.0],
-                    [0.0, 0.0, 0.0, 1.0f32]
-                ],
-                LightColor: [1.0f32, 1.0f32, 1.0f32],
-                AmbientIntensity: 0.01f32,
-                LightPosition: *light_position,
-                view_proj: *view_proj,
-                tex: &object.diffuse_texture
-            };
-
-            frame
-                .draw(&object.vertices, &indices, &program, uniforms, &draw_params)
-                .unwrap();
-        }
+    pub fn get_mesh_objects(&self) -> &Vec<MeshObject> {
+        &self.objects
     }
 }

@@ -5,9 +5,8 @@ mod camera;
 mod model;
 mod model_render_system;
 mod renderer;
+mod shadow_render_system;
 
-use glium::texture::SrgbTexture2d;
-use glium::{GlObject, Surface};
 use model::Model;
 use pollster::FutureExt;
 
@@ -118,27 +117,6 @@ fn main() {
 
         let renderer = renderer::Renderer::new(state.get_display_ref());
 
-        let shadow_texture =
-            glium::texture::DepthTexture2d::empty(state.get_display_ref(), 1024, 1024).unwrap();
-        let shadow_cubemap =
-            glium::texture::DepthCubemap::empty(state.get_display_ref(), 1024).unwrap();
-
-        let shadow_texture_to_render = unsafe {
-            SrgbTexture2d::from_id(
-                state.get_display_ref(),
-                glium::texture::SrgbFormat::U8U8U8U8,
-                shadow_texture.get_id(),
-                false,
-                glium::texture::MipmapsOption::NoMipmap,
-                glium::texture::Dimensions::Texture2d {
-                    width: 1024,
-                    height: 1024,
-                },
-            )
-        };
-
-        let shadow_texture_to_render = std::rc::Rc::new(shadow_texture_to_render);
-
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
         let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
@@ -147,12 +125,12 @@ fn main() {
 
         let mut last_render_time = std::time::Instant::now();
 
-        let texture_id = egui_glium
-            .painter
-            .register_native_texture(shadow_texture_to_render);
-
         let mut start = std::time::Instant::now();
         let mut light_t: f64 = 2.7;
+
+        let texture_id = egui_glium
+            .painter
+            .register_native_texture(renderer.get_drawable_shadow_texture());
 
         event_loop.run(move |event, _, control_flow| {
             let mut redraw = || {
@@ -169,9 +147,9 @@ fn main() {
                 light_t += secs * 0.5;
 
                 let light_loc = {
-                    let x = 8.0 * light_t.cos();
+                    let x = 1.0 * light_t.cos();
                     let z = 1.0 * light_t.sin();
-                    [x as f32, 20.0, z as f32]
+                    [x as f32, 15.0, z as f32]
                 };
 
                 let repaint_after = egui_glium.run(state.get_display_ref(), |egui_ctx| {
@@ -210,6 +188,8 @@ fn main() {
                 {
                     state.update(dt);
 
+                    renderer.render_shadows(state.get_display_ref(), &models, &light_loc.into());
+
                     use glium::Surface;
 
                     // draw things behind egui here
@@ -218,13 +198,7 @@ fn main() {
                     let color = egui::Rgba::from_rgb(0.53, 0.81, 0.92);
                     target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
 
-                    renderer.render_scene(
-                        state.get_display_ref(),
-                        &mut target,
-                        &state.camera,
-                        &models,
-                        &light_loc.into(),
-                    );
+                    renderer.render_scene(&mut target, &state.camera, &models, &light_loc.into());
 
                     egui_glium.paint(state.get_display_ref(), &mut target);
 

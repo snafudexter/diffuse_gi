@@ -25,7 +25,7 @@ impl Camera {
         znear: f32,
         zfar: f32,
     ) -> Self {
-        let projection = Projection::new(width, height, cgmath::Deg(fov), 0.1, 100.0);
+        let projection = Projection::new(width, height, cgmath::Deg(fov), znear, zfar);
         Self {
             position: position.into(),
             yaw: yaw.into(),
