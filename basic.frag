@@ -65,7 +65,7 @@ float compute_pcf(vec4 fragPosLightSpace, float cosTheta) {
 
 		// being fully in the shadow will eat up 4*0.2 = 0.8
 		// 0.2 potentially remain, which is quite dark.
-        visibility -= 0.2 * (1.0 - texture(shadowMap, vec3(projCoords.xy + poissonDisk[index] / 700.0, (projCoords.z - bias) / 1.0)));
+        visibility -= 0.2 * (1.0 - texture(shadowMap, vec3(projCoords.xy + poissonDisk[index] / 1000.0, (projCoords.z - bias) / 1.0)));
     }
 
     return visibility;

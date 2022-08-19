@@ -18,6 +18,8 @@ impl ShadowRenderSystem {
 
         let fragment_shader_src = std::fs::read_to_string("./shadow.frag").unwrap();
 
+        println!("compiling shadow shaders");
+
         let program =
             glium::Program::from_source(display, &vertex_shader_src, &fragment_shader_src, None)
                 .unwrap();

@@ -31,6 +31,7 @@ pub struct Model {
 
 impl Model {
     pub fn new(path: &str, display: &Display) -> Self {
+        println!("loading models");
         let mut obj = Obj::load(path).unwrap();
         obj.load_mtls().unwrap();
 
@@ -144,6 +145,7 @@ impl Model {
                 objects.push(object);
             }
         }
+        println!("finished loading models");
         Self { objects }
     }
 
