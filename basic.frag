@@ -61,7 +61,7 @@ float compute_pcf(vec4 fragPosLightSpace, float cosTheta) {
         //int index = int(16.0 * random(gl_FragCoord.xyy, i)) % 16;
 		//  - A random sample, based on the pixel's position in world space.
 		//    The position is rounded to the millimeter to avoid too much aliasing
-		 int index = int(16.0*random(floor(worldPos.xyz*1000.0), i))%16;
+        int index = int(16.0 * random(floor(worldPos.xyz * 1000.0), i)) % 16;
 
 		// being fully in the shadow will eat up 4*0.2 = 0.8
 		// 0.2 potentially remain, which is quite dark.
