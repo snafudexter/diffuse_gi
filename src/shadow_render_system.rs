@@ -1,3 +1,4 @@
+use fast_poisson::Poisson2D;
 use glium::{texture::SrgbTexture2d, GlObject};
 
 pub struct ShadowRenderSystem {
@@ -5,9 +6,10 @@ pub struct ShadowRenderSystem {
     program: glium::program::Program,
     projection_matrix: cgmath::Matrix4<f32>,
     drawable_shadow_texture: std::rc::Rc<SrgbTexture2d>,
+    poisson_disk: glium::texture::SrgbTexture1d
 }
 
-const SHADOW_SIZE: u32 = 4096 / 2;
+pub const SHADOW_SIZE: u32 = 1024;
 
 impl ShadowRenderSystem {
     pub fn new(display: &glium::Display) -> Self {
@@ -42,13 +44,28 @@ impl ShadowRenderSystem {
             )
         };
 
+        let points: Vec<[f64; 2]> = Poisson2D::new().with_samples(100).generate();
+
+        let points = points
+            .iter()
+            .map(|point| vec![point[0] as f32, point[1] as f32, 0.0])
+            .flatten()
+            .collect();
+
+        let distribution = glium::texture::RawImage1d::from_raw_rgb(points);
+
+        let poisson_disk = glium::texture::SrgbTexture1d::new(display, distribution).unwrap();
+
         let shadow_texture_to_render = std::rc::Rc::new(shadow_texture_to_render);
+
+        println!("{:?}", poisson_disk.get_internal_format().unwrap());
 
         Self {
             texture,
             program,
             projection_matrix,
             drawable_shadow_texture: shadow_texture_to_render,
+            poisson_disk
         }
     }
 
@@ -72,5 +89,9 @@ impl ShadowRenderSystem {
 
     pub fn get_drawable_shadow_texture(&self) -> std::rc::Rc<SrgbTexture2d> {
         self.drawable_shadow_texture.clone()
+    }
+
+    pub fn get_poisson_disk_texture(&self) -> &glium::texture::SrgbTexture1d {
+        &self.poisson_disk
     }
 }

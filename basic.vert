@@ -7,19 +7,16 @@ layout(location = 2) in vec3 normal;
 uniform mat4 view_proj;
 uniform mat4 model;
 uniform mat4 light_space_matrix;
-uniform mat4 depth_bias_matrix;
 
 out vec3 surfaceNormal;
 out vec2 fragTexCoord;
 out vec4 worldPos;
 out vec4 fragPosLightSpace;
-out vec4 shadowCoord;
 
 void main() {
     fragTexCoord = tex_coord;
     worldPos = model * vec4(position, 1);
     surfaceNormal = (model * vec4(normal, 0.0)).xyz;
     fragPosLightSpace = light_space_matrix * worldPos;
-    shadowCoord = depth_bias_matrix * vec4(position, 1.0);
     gl_Position = view_proj * worldPos;
 }

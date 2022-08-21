@@ -76,12 +76,7 @@ impl Renderer {
         for model in models {
             for mesh_object in model.get_mesh_objects() {
                 let uniforms = &uniform! {
-                    model: [
-                        [0.01, 0.0, 0.0, 0.0],
-                        [0.0, 0.01, 0.0, 0.0],
-                        [0.0, 0.0, 0.01, 0.0],
-                        [0.0, 0.0, 0.0, 1.0f32]
-                    ],
+                    model: model.get_transform(),
                     view_proj: view_proj,
                 };
 
@@ -119,34 +114,51 @@ impl Renderer {
                     glium::uniforms::DepthTextureComparison::LessOrEqual,
                 ));
 
-        let light_space_matrix: [[f32; 4]; 4] = (self.shadow_render_system.get_projection_matrix()
+        let light_space_matrix = self.shadow_render_system.get_projection_matrix()
             * self
                 .shadow_render_system
-                .get_view_matrix(light_position.into()))
-        .into();
+                .get_view_matrix(light_position.into());
 
-        let depth_bias_matrix: [[f32; 4]; 4] = cgmath::Matrix4::new(
-            0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0,
+        let depth_bias_matrix = cgmath::Matrix4::from_scale(0.5)
+            * cgmath::Matrix4::from_translation((1.0f32, 1.0f32, 1.0f32).into());
+
+        let light_matrix: [[f32; 4]; 4] = (depth_bias_matrix * light_space_matrix).into();
+
+        let texel_size: [f32; 3] = cgmath::Vector3::new(
+            1.0 / crate::shadow_render_system::SHADOW_SIZE as f32,
+            1.0 / crate::shadow_render_system::SHADOW_SIZE as f32,
+            0.0f32,
         )
         .into();
+
+        let shadow_bias = 2.0f32 / crate::shadow_render_system::SHADOW_SIZE as f32;
+
+        let eye_position: [f32; 3] = [
+            camera.get_view_position().x,
+            camera.get_view_position().y,
+            camera.get_view_position().z,
+        ];
+
+        let frustum_size = 2.0 * 0.1 * (45.0f32 * 0.5).tan() * camera.get_aspect_ratio();
+
+        //println!("texel size {:?} bias {:?}", texel_size, shadow_bias);
 
         for model in models {
             for mesh_object in model.get_mesh_objects() {
                 let uniforms = &uniform! {
-                    model: [
-                        [0.01, 0.0, 0.0, 0.0],
-                        [0.0, 0.01, 0.0, 0.0],
-                        [0.0, 0.0, 0.01, 0.0],
-                        [0.0, 0.0, 0.0, 1.0f32]
-                    ],
-                    LightColor: [1.0f32, 1.0f32, 1.0f32],
-                    AmbientIntensity: 0.000f32,
-                    LightPosition: *light_position,
+                    model: model.get_transform(),
+                    lightColor: [1.0f32, 1.0f32, 1.0f32],
+                    ambientIntensity: 0.005f32,
+                    lightPosition: *light_position,
                     view_proj: view_proj,
                     tex: mesh_object.get_diffuse_texture(),
                     shadowMap: shadow_map,
-                    light_space_matrix: light_space_matrix,
-                    depth_bias_matrix: depth_bias_matrix
+                    light_space_matrix: light_matrix,
+                    texelSize: texel_size,
+                    shadowBias: shadow_bias,
+                    eyePosition: eye_position,
+                    frustumSize: frustum_size,
+                    distribution: self.shadow_render_system.get_poisson_disk_texture()
                 };
 
                 target

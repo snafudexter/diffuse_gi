@@ -121,7 +121,16 @@ fn main() {
 
         let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
 
-        let models = vec![sponza];
+        let mut sphere_model = Model::new("./sphere.obj", state.get_display_ref());
+
+        sphere_model.set_position(cgmath::Vector3 {
+            x: 0.,
+            y: 7.,
+            z: 0.,
+        });
+        sphere_model.set_scale(0.1);
+
+        let models = vec![sponza, sphere_model];
 
         let mut last_render_time = std::time::Instant::now();
 
@@ -151,6 +160,7 @@ fn main() {
                     let z = 1.0 * light_t.sin();
                     [x as f32, 15.0, z as f32]
                 };
+                //println!("{:?}", light_loc);
 
                 let repaint_after = egui_glium.run(state.get_display_ref(), |egui_ctx| {
                     egui::Window::new("Shadow map")

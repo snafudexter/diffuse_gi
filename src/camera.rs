@@ -52,6 +52,14 @@ impl Camera {
     pub fn resize(&mut self, width: u32, height: u32) {
         self.projection.resize(width, height)
     }
+
+    pub fn get_view_position(&self) -> &Point3<f32> {
+        &self.position
+    }
+
+    pub fn get_aspect_ratio(&self) -> &f32 {
+        self.projection.get_aspect_ratio()
+    }
 }
 
 #[derive(Debug)]
@@ -78,6 +86,10 @@ impl Projection {
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
         perspective(self.fovy, self.aspect, self.znear, self.zfar)
+    }
+
+    pub fn get_aspect_ratio(&self) -> &f32 {
+        &self.aspect
     }
 }
 

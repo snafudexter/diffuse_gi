@@ -27,6 +27,8 @@ impl MeshObject {
 
 pub struct Model {
     objects: Vec<MeshObject>,
+    position: cgmath::Vector3<f32>,
+    scale: f32,
 }
 
 impl Model {
@@ -125,8 +127,8 @@ impl Model {
                                     .unwrap()
                                     .decode()
                                     .unwrap();
-                                let raw_image = glium::texture::RawImage2d::from_raw_rgba_reversed(
-                                    &diffuse_image.to_rgba8(),
+                                let raw_image = glium::texture::RawImage2d::from_raw_rgba(
+                                    (&diffuse_image.to_rgba8()).to_vec(),
                                     diffuse_image.dimensions(),
                                 );
                                 diffuse_texture =
@@ -146,10 +148,30 @@ impl Model {
             }
         }
         println!("finished loading models");
-        Self { objects }
+
+        let position = cgmath::Vector3::new(0., 0., 0.);
+
+        Self {
+            objects,
+            position,
+            scale: 0.01,
+        }
     }
 
     pub fn get_mesh_objects(&self) -> &Vec<MeshObject> {
         &self.objects
+    }
+
+    pub fn set_position(&mut self, position: cgmath::Vector3<f32>) {
+        self.position = position;
+    }
+
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
+
+    pub fn get_transform(&self) -> [[f32; 4]; 4] {
+        (cgmath::Matrix4::from_translation(self.position) * cgmath::Matrix4::from_scale(self.scale))
+            .into()
     }
 }
