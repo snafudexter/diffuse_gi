@@ -131,14 +131,6 @@ impl Renderer {
         )
         .into();
 
-        let shadow_bias = 2.0f32 / crate::shadow_render_system::SHADOW_SIZE as f32;
-
-        let eye_position: [f32; 3] = [
-            camera.get_view_position().x,
-            camera.get_view_position().y,
-            camera.get_view_position().z,
-        ];
-
         let frustum_size = 2.0 * 0.1 * (45.0f32 * 0.5).tan() * camera.get_aspect_ratio();
 
         //println!("texel size {:?} bias {:?}", texel_size, shadow_bias);
@@ -147,7 +139,7 @@ impl Renderer {
             for mesh_object in model.get_mesh_objects() {
                 let uniforms = &uniform! {
                     model: model.get_transform(),
-                    lightColor: [1.0f32, 1.0f32, 1.0f32],
+                    lightColor: [1f32, 0.9f32, 0.66f32],
                     ambientIntensity: 0.1f32,
                     lightPosition: *light_position,
                     view_proj: view_proj,
@@ -155,8 +147,6 @@ impl Renderer {
                     shadowMap: shadow_map,
                     light_space_matrix: light_matrix,
                     texelSize: texel_size,
-                    shadowBias: shadow_bias,
-                    eyePosition: eye_position,
                     frustumSize: frustum_size,
                     distribution: self.shadow_render_system.get_poisson_disk_texture()
                 };

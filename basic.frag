@@ -8,14 +8,12 @@ uniform sampler2D tex;
 uniform sampler2D shadowMap;
 uniform sampler1D distribution;
 
-uniform vec3 eyePosition;
 uniform vec3 texelSize;
 uniform vec3 lightPosition;
 uniform vec3 lightColor;
 uniform float ambientIntensity;
-uniform float shadowBias;
 uniform float numBlockerSearchSamples = 16;
-uniform float uvLightSize = 1;
+uniform float uvLightSize = 10;
 uniform float frustumSize;
 
 in vec2 fragTexCoord;
@@ -25,7 +23,7 @@ in vec4 fragPosLightSpace;
 
 out vec4 finalColor;
 
-vec2 RandomDirection(sampler1D distribution, float u) {
+vec2 RandomDirection(float u) {
     return texture(distribution, u).xy * 2 - vec2(1);
 }
 
@@ -39,7 +37,7 @@ float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, float compare, vec
     float samples = int(uvRadius / 0.9);
     samples = samples > 40 ? 40 : samples;
     samples = samples < 1 ? 2 : samples;
-    float samples_start = samples;//(samples - 1.0f) / 2.0f;
+    float samples_start = (samples - 1.0f) / 2.0f;
     int count = 0;
 
     for(float y = -samples_start; y <= samples_start; y += 1.0f) {
@@ -72,7 +70,7 @@ float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, float compare, vec
 }
 
 float SearchWidth(float uvLightSize, float receiverDistance) {
-    return uvLightSize * (receiverDistance - NEAR) / eyePosition.z;
+    return uvLightSize * (receiverDistance - NEAR) / receiverDistance;
 }
 
 float FindBlockerDistance_DirectionalLight(vec3 shadowCoords, sampler2D shadowMap, float uvLightSize, float compare, vec2 texel_size) {
@@ -80,8 +78,8 @@ float FindBlockerDistance_DirectionalLight(vec3 shadowCoords, sampler2D shadowMa
     float avgBlockerDistance = 0;
     float searchWidth = SearchWidth(uvLightSize, shadowCoords.z);
     for(int i = 0; i < numBlockerSearchSamples; i++) {
-        vec2 coordsOffset = RandomDirection(distribution, float(i) / float(numBlockerSearchSamples)) * texel_size;
-        float z = texture(shadowMap, shadowCoords.xy + coordsOffset * searchWidth).r;
+        vec2 coordsOffset = RandomDirection(float(i) / float(numBlockerSearchSamples)) * texel_size;
+        float z = texture(shadowMap, shadowCoords.xy + coordsOffset * (searchWidth/numBlockerSearchSamples)).r;
         if(z < (compare)) {
             blockers++;
             avgBlockerDistance += z;
@@ -100,10 +98,10 @@ float sample_shadow_map_pcss(sampler2D shadowMap, vec3 shadowCoords, float uvLig
         return 1;		
 
 	// penumbra estimation
-    float penumbraWidth = (shadowCoords.z - blockerDistance) / blockerDistance;
+    float penumbraWidth = ((shadowCoords.z - blockerDistance) * uvLightSize) / blockerDistance;
 
 	// percentage-close filtering
-    float uvRadius = penumbraWidth * uvLightSize * NEAR / shadowCoords.z;
+    float uvRadius = penumbraWidth;// * uvLightSize ;//* NEAR / shadowCoords.z;
     return 1 - sample_shadow_map_pcf(shadowMap, shadowCoords.xy, compare, texel_size, uvRadius, currentDepth, bias);
 }
 

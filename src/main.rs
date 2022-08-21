@@ -119,13 +119,15 @@ fn main() {
 
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
-        let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
+        let mut sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
+
+        //sponza.set_scale(0.1);
 
         let mut sphere_model = Model::new("./sphere.obj", state.get_display_ref());
 
         sphere_model.set_position(cgmath::Vector3 {
             x: 0.,
-            y: 21.5,
+            y: 1.0,
             z: 0.,
         });
         sphere_model.set_scale(0.1);
@@ -158,7 +160,7 @@ fn main() {
                 let light_loc = {
                     let x = 1.0 * light_t.cos();
                     let z = 1.0 * light_t.sin();
-                    [x as f32, 12.0, z as f32]
+                    [x as f32, 50.0, z as f32]
                 };
                 //println!("{:?}", light_loc);
 

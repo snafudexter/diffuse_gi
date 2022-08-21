@@ -9,7 +9,7 @@ pub struct ShadowRenderSystem {
     poisson_disk: glium::texture::SrgbTexture1d
 }
 
-pub const SHADOW_SIZE: u32 = 1024;
+pub const SHADOW_SIZE: u32 = 1024 * 5;
 
 impl ShadowRenderSystem {
     pub fn new(display: &glium::Display) -> Self {
@@ -28,7 +28,7 @@ impl ShadowRenderSystem {
 
         let w = 20.0;
 
-        let projection_matrix: cgmath::Matrix4<f32> = cgmath::ortho(-w, w, -w, w, -10.0, 50.0);
+        let projection_matrix: cgmath::Matrix4<f32> = cgmath::ortho(-w, w, -w, w, -10.0, 100.0);
 
         let shadow_texture_to_render = unsafe {
             SrgbTexture2d::from_id(
