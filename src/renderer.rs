@@ -148,7 +148,7 @@ impl Renderer {
                 let uniforms = &uniform! {
                     model: model.get_transform(),
                     lightColor: [1.0f32, 1.0f32, 1.0f32],
-                    ambientIntensity: 0.005f32,
+                    ambientIntensity: 0.1f32,
                     lightPosition: *light_position,
                     view_proj: view_proj,
                     tex: mesh_object.get_diffuse_texture(),

@@ -125,7 +125,7 @@ fn main() {
 
         sphere_model.set_position(cgmath::Vector3 {
             x: 0.,
-            y: 7.,
+            y: 21.5,
             z: 0.,
         });
         sphere_model.set_scale(0.1);
@@ -158,7 +158,7 @@ fn main() {
                 let light_loc = {
                     let x = 1.0 * light_t.cos();
                     let z = 1.0 * light_t.sin();
-                    [x as f32, 15.0, z as f32]
+                    [x as f32, 12.0, z as f32]
                 };
                 //println!("{:?}", light_loc);
 

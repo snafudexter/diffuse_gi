@@ -25,55 +25,63 @@ in vec4 fragPosLightSpace;
 
 out vec4 finalColor;
 
-vec2 poissonDisk[16] = vec2[](vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725), vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760), vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464), vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379), vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420), vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188), vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590), vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790));
-
-vec2 RandomDirection(sampler1D distribution, float u)
-{
-   return texture(distribution, u).xy * 2 - vec2(1);
+vec2 RandomDirection(sampler1D distribution, float u) {
+    return texture(distribution, u).xy * 2 - vec2(1);
 }
 
 float sample_shadow_map(sampler2D shadowMap, vec2 coords, float compare) {
-    return step(compare, texture2D(shadowMap, coords.xy).r);
+    return step(compare, texture(shadowMap, coords.xy).r);
 }
 
-float sample_shadow_map_pcf(sampler1D distribution, sampler2D shadowMap, vec2 coords, float compare, vec2 texel_size, float uvRadius) {
+float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, float compare, vec2 texel_size, float uvRadius, float currentDepth, float bias) {
     float result = 0.0f;
 
-    //const float samples = 5.0f;
-    // const float samples_start = (samples - 1.0f) / 2.0f;
-    // const float samples_squared = samples * samples;
+    float samples = int(uvRadius / 0.9);
+    samples = samples > 40 ? 40 : samples;
+    samples = samples < 1 ? 2 : samples;
+    float samples_start = samples;//(samples - 1.0f) / 2.0f;
+    int count = 0;
 
-    // for(float y = -samples_start; y < samples_start; y += 1.0f) {
-    //     for(float x = -samples_start; x < samples_start; x += 1.0f) {
+    for(float y = -samples_start; y <= samples_start; y += 1.0f) {
+        count++;
+        for(float x = -samples_start; x <= samples_start; x += 1.0f) {
 
-    //         vec2 coordsOffset = vec2(x, y) * texel_size * uvRadius;
-    //         result += sample_shadow_map(shadowMap, coords + coordsOffset, compare);
+            vec2 coordsOffset = vec2(x, y) * texel_size;
+            float pcfDepth = texture(shadowMap, coords + coordsOffset).r;
+            result += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 
-    //     }
-    // }
-
-    // return result / samples_squared;
-
-    for(int i = 0; i < numBlockerSearchSamples; i++) {
-        vec2 coordsOffset = RandomDirection(distribution, float(float(i) / float(numBlockerSearchSamples))) * texel_size * uvRadius;
-        float z = texture2D(shadowMap, coords.xy + coordsOffset).r;
-        result += z < compare ? 1.0 : 0.0;
+        }
     }
 
-    return result / numBlockerSearchSamples;
+    count = count > 0 ? count : 1;
+    result /= (count * count);
+
+    // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
+    if(currentDepth > 1.0)
+        result = 0.0;
+
+    return result;
+
+    // for(int i = 0; i < numBlockerSearchSamples; i++) {
+    //     vec2 coordsOffset = RandomDirection(distribution, float(float(i) / float(numBlockerSearchSamples))) * texel_size * uvRadius;
+    //     float z = texture(shadowMap, coords.xy + coordsOffset).r;
+    //     result += z < compare ? 1.0 : 0.0;
+    // }
+
+    // return result / numBlockerSearchSamples;
 }
 
 float SearchWidth(float uvLightSize, float receiverDistance) {
     return uvLightSize * (receiverDistance - NEAR) / eyePosition.z;
 }
 
-float FindBlockerDistance_DirectionalLight(sampler1D distribution, vec3 shadowCoords, sampler2D shadowMap, float uvLightSize, float compare, vec2 texel_size) {
+float FindBlockerDistance_DirectionalLight(vec3 shadowCoords, sampler2D shadowMap, float uvLightSize, float compare, vec2 texel_size) {
     int blockers = 0;
     float avgBlockerDistance = 0;
     float searchWidth = SearchWidth(uvLightSize, shadowCoords.z);
     for(int i = 0; i < numBlockerSearchSamples; i++) {
         vec2 coordsOffset = RandomDirection(distribution, float(i) / float(numBlockerSearchSamples)) * texel_size;
-        float z = texture2D(shadowMap, shadowCoords.xy + coordsOffset * searchWidth).r;
+        float z = texture(shadowMap, shadowCoords.xy + coordsOffset * searchWidth).r;
         if(z < (compare)) {
             blockers++;
             avgBlockerDistance += z;
@@ -85,9 +93,9 @@ float FindBlockerDistance_DirectionalLight(sampler1D distribution, vec3 shadowCo
         return -1;
 }
 
-float sample_shadow_map_pcss(sampler1D distribution, sampler2D shadowMap, vec3 shadowCoords, float uvLightSize, float compare, vec2 texel_size) {
+float sample_shadow_map_pcss(sampler2D shadowMap, vec3 shadowCoords, float uvLightSize, float compare, vec2 texel_size, float currentDepth, float bias) {
 	// blocker search
-    float blockerDistance = FindBlockerDistance_DirectionalLight(distribution,shadowCoords, shadowMap, uvLightSize, compare, texel_size);
+    float blockerDistance = FindBlockerDistance_DirectionalLight(shadowCoords, shadowMap, uvLightSize, compare, texel_size);
     if(blockerDistance == -1)
         return 1;		
 
@@ -96,20 +104,24 @@ float sample_shadow_map_pcss(sampler1D distribution, sampler2D shadowMap, vec3 s
 
 	// percentage-close filtering
     float uvRadius = penumbraWidth * uvLightSize * NEAR / shadowCoords.z;
-    return 1 - sample_shadow_map_pcf(distribution, shadowMap, shadowCoords.xy, compare, texel_size, uvRadius);
+    return 1 - sample_shadow_map_pcf(shadowMap, shadowCoords.xy, compare, texel_size, uvRadius, currentDepth, bias);
 }
 
 float compute_shadow(vec4 fragPosLightSpace, float uvLightSize) {
     vec3 shadowMapCoords = (fragPosLightSpace.xyz / fragPosLightSpace.w);
 
-    return sample_shadow_map_pcss(distribution, shadowMap, shadowMapCoords, uvLightSize, shadowMapCoords.z - shadowBias, texelSize.xy);
+    vec3 normal = normalize(surfaceNormal);
+    vec3 lightDir = normalize(lightPosition - worldPos.xyz);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.001);
+
+    return sample_shadow_map_pcss(shadowMap, shadowMapCoords, uvLightSize, shadowMapCoords.z - bias, texelSize.xy, shadowMapCoords.z, bias);
 
     // return sample_shadow_map_pcf(shadowMap, shadowMapCoords.xy, shadowMapCoords.z - shadowBias, texelSize.xy, 1.0);
 }
 
 void main() {
 
-    vec4 textureSample = texture2D(tex, fragTexCoord);
+    vec4 textureSample = texture(tex, fragTexCoord);
 
     vec4 AmbientColor = textureSample * vec4(lightColor, textureSample.a) *
         ambientIntensity;
@@ -121,9 +133,9 @@ void main() {
     float nDotL = dot(unitNormal, unitLightPosition);
     float brightness = max(nDotL, 0.0);
 
-    vec4 DiffuseColor = textureSample * vec4(lightColor, textureSample.a) * 0.4 * brightness;
+    vec4 DiffuseColor = textureSample * vec4(lightColor, textureSample.a) * brightness;
 
     float shadow = compute_shadow(fragPosLightSpace, uvLightSize / frustumSize);
 
-    finalColor = (AmbientColor + DiffuseColor * shadow);
+    finalColor = ((AmbientColor + shadow) * DiffuseColor);
 }
