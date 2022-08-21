@@ -13,7 +13,7 @@ uniform vec3 lightPosition;
 uniform vec3 lightColor;
 uniform float ambientIntensity;
 uniform float numBlockerSearchSamples = 16;
-uniform float uvLightSize = 10;
+uniform float uvLightSize = 4;
 uniform float frustumSize;
 
 in vec2 fragTexCoord;
@@ -121,7 +121,10 @@ void main() {
 
     vec4 textureSample = texture(tex, fragTexCoord);
 
-    vec4 AmbientColor = textureSample * vec4(lightColor, textureSample.a) *
+    if(textureSample.a < 0.1)
+        discard;
+
+    vec4 AmbientColor = textureSample * vec4(lightColor, 1.0) *
         ambientIntensity;
 
     vec3 toLightVector = lightPosition - worldPos.xyz;
@@ -131,9 +134,11 @@ void main() {
     float nDotL = dot(unitNormal, unitLightPosition);
     float brightness = max(nDotL, 0.0);
 
-    vec4 DiffuseColor = textureSample * vec4(lightColor, textureSample.a) * brightness;
+    vec4 DiffuseColor = textureSample * vec4(lightColor, 1.0) * brightness;
 
     float shadow = compute_shadow(fragPosLightSpace, uvLightSize / frustumSize);
 
-    finalColor = ((AmbientColor + shadow) * DiffuseColor);
+    AmbientColor += shadow;
+
+    finalColor = ((AmbientColor) * DiffuseColor);
 }

@@ -34,7 +34,7 @@ impl State {
             .with_gl_profile(glutin::GlProfile::Core)
             .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (4, 6)))
             .with_depth_buffer(24)
-            .with_vsync(true)
+            .with_vsync(false)
             .with_double_buffer(Some(true));
 
         let display = glium::Display::new(wb, cb, &event_loop).unwrap();
@@ -158,8 +158,8 @@ fn main() {
                 light_t += secs * 0.5;
 
                 let light_loc = {
-                    let x = 1.0 * light_t.cos();
-                    let z = 1.0 * light_t.sin();
+                    let x = 2.0 * light_t.cos();
+                    let z = 2.0 * light_t.sin();
                     [x as f32, 15.0, z as f32]
                 };
                 //println!("{:?}", light_loc);
