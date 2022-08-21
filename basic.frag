@@ -101,7 +101,7 @@ float sample_shadow_map_pcss(sampler2D shadowMap, vec3 shadowCoords, float uvLig
     float penumbraWidth = ((shadowCoords.z - blockerDistance) * uvLightSize) / blockerDistance;
 
 	// percentage-close filtering
-    float uvRadius = penumbraWidth;// * uvLightSize ;//* NEAR / shadowCoords.z;
+    float uvRadius = penumbraWidth * NEAR / shadowCoords.z;
     return 1 - sample_shadow_map_pcf(shadowMap, shadowCoords.xy, compare, texel_size, uvRadius, currentDepth, bias);
 }
 

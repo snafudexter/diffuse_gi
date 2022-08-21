@@ -160,7 +160,7 @@ fn main() {
                 let light_loc = {
                     let x = 1.0 * light_t.cos();
                     let z = 1.0 * light_t.sin();
-                    [x as f32, 50.0, z as f32]
+                    [x as f32, 15.0, z as f32]
                 };
                 //println!("{:?}", light_loc);
 

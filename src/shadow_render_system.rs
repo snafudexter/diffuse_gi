@@ -9,7 +9,7 @@ pub struct ShadowRenderSystem {
     poisson_disk: glium::texture::SrgbTexture1d
 }
 
-pub const SHADOW_SIZE: u32 = 1024 * 5;
+pub const SHADOW_SIZE: u32 = 1024;
 
 impl ShadowRenderSystem {
     pub fn new(display: &glium::Display) -> Self {
