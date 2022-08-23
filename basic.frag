@@ -12,8 +12,8 @@ uniform vec3 texelSize;
 uniform vec3 lightPosition;
 uniform vec3 lightColor;
 uniform float ambientIntensity;
-uniform float numBlockerSearchSamples = 2;
-uniform float uvLightSize = 1;
+uniform float numBlockerSearchSamples = 16;
+uniform float uvLightSize = 4;
 uniform float frustumSize;
 
 in vec2 fragTexCoord;
@@ -40,9 +40,9 @@ float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, vec2 texel_size, f
         count++;
         for(float x = -samples_start; x <= samples_start; x += 1.0f) {
 
-            vec2 coordsOffset = vec2(x, y) * texel_size * 2;
+            vec2 coordsOffset = vec2(x, y) * texel_size;
             float pcfDepth = texture(shadowMap, coords + coordsOffset).r;
-            result += currentDepth - bias * 1.4 > pcfDepth ? 1.0 : 0.0;
+            result += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 
         }
     }
