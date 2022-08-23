@@ -207,12 +207,12 @@ fn main() {
                     // draw things behind egui here
                     let mut target = state.get_display_ref().draw();
 
-                    // let color = egui::Rgba::from_rgb(0.53, 0.81, 0.92);
-                    // target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
+                    let color = egui::Rgba::from_rgb(0.53, 0.81, 0.92);
+                    target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
 
-                    // renderer.render_scene(&mut target, &state.camera, &models, &light_loc.into());
+                    renderer.render_scene(&mut target, &state.camera, &models, &light_loc.into());
 
-                    // egui_glium.paint(state.get_display_ref(), &mut target);
+                    egui_glium.paint(state.get_display_ref(), &mut target);
 
                     target.finish().unwrap();
 
