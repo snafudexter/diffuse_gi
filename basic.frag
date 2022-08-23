@@ -30,8 +30,8 @@ vec2 RandomDirection(float u) {
 float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, vec2 texel_size, float uvRadius, float currentDepth, float bias) {
     float result = 0.0f;
 
-    float samples = int(uvRadius / 0.9) * 1.2;
-    //samples = samples > 40 ? 40 : samples;
+    float samples = int(uvRadius / 0.9);
+    samples = samples > 40 ? 40 : samples;
     samples = samples < 1 ? 2 : samples;
     float samples_start = samples / 2.0f;
     int count = 0;
@@ -40,9 +40,9 @@ float sample_shadow_map_pcf(sampler2D shadowMap, vec2 coords, vec2 texel_size, f
         count++;
         for(float x = -samples_start; x <= samples_start; x += 1.0f) {
 
-            vec2 coordsOffset = vec2(x, y) * texel_size;
+            vec2 coordsOffset = vec2(x, y) * texel_size * 2;
             float pcfDepth = texture(shadowMap, coords + coordsOffset).r;
-            result += currentDepth - bias * 1.2 > pcfDepth ? 1.0 : 0.0;
+            result += currentDepth - bias * 1.4 > pcfDepth ? 1.0 : 0.0;
 
         }
     }
@@ -102,8 +102,9 @@ float compute_shadow(vec4 fragPosLightSpace, float uvLightSize, float bias) {
 void main() {
 
     vec4 textureSample = texture(tex, fragTexCoord);
+    vec2 samplerSize = textureSize(tex, 0);
 
-    if(textureSample.a < 0.1)
+    if(samplerSize.x > 1 && samplerSize.y > 1 && textureSample.a < 0.1)
         discard;
 
     vec4 AmbientColor = textureSample * vec4(lightColor, 1.0) *

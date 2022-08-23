@@ -158,7 +158,7 @@ fn main() {
                 light_t += secs * 0.5;
 
                 let light_loc = {
-                    let x = 2.0 * light_t.cos();
+                    let x = 30.0 * light_t.cos();
                     let z = 2.0 * light_t.sin();
                     [x as f32, 15.0, z as f32]
                 };

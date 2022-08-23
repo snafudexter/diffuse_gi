@@ -114,7 +114,7 @@ impl Model {
                     .collect();
 
                 let mut diffuse_texture =
-                    glium::texture::SrgbTexture2d::empty(display, 2, 2).unwrap();
+                    glium::texture::SrgbTexture2d::empty(display, 1, 1).unwrap();
                 let base_path = "./Sponza/".to_owned();
 
                 match group.material.unwrap() {
