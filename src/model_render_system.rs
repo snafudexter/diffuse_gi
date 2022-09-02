@@ -1,3 +1,5 @@
+use log::info;
+
 pub struct ModelRenderSystem {
     shader_program: glium::Program,
 }
@@ -8,11 +10,11 @@ impl ModelRenderSystem {
 
         let fragment_shader_src = std::fs::read_to_string("./basic.frag").unwrap();
 
-        println!("compiling shaders");
+        println!("compiling model shaders");
         let program =
             glium::Program::from_source(display, &vertex_shader_src, &fragment_shader_src, None)
                 .unwrap();
-
+        println!("finished loading model shaders");
         Self {
             shader_program: program,
         }

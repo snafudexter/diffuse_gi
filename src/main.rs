@@ -6,7 +6,9 @@ mod model;
 mod model_render_system;
 mod renderer;
 mod shadow_render_system;
+mod sky_render_system;
 
+use cgmath::InnerSpace;
 use model::Model;
 use pollster::FutureExt;
 
@@ -22,7 +24,7 @@ struct State {
 
 impl State {
     async fn new(event_loop: &glium::glutin::event_loop::EventLoop<()>) -> Self {
-        use glium::{glutin, Surface};
+        use glium::glutin;
 
         let wb = glutin::window::WindowBuilder::new()
             .with_title("Diffue GI")
@@ -41,13 +43,13 @@ impl State {
 
         let camera = camera::Camera::new(
             (-10.0, 7.0, 1.2),
-            cgmath::Deg(-10f32),
+            cgmath::Deg(0f32),
             cgmath::Deg(0.0),
             WIDTH,
             HEIGHT,
             45.0,
             0.1,
-            100.0,
+            2000.0,
         );
         let camera_controller = camera::CameraController::new(2.0, 0.6);
 
@@ -119,20 +121,9 @@ fn main() {
 
         let mut egui_glium = egui_glium::EguiGlium::new(state.get_display_ref());
 
-        let mut sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
+        let sponza = Model::new("./Sponza/sponza.obj", state.get_display_ref());
 
-        //sponza.set_scale(0.1);
-
-        let mut sphere_model = Model::new("./sphere.obj", state.get_display_ref());
-
-        sphere_model.set_position(cgmath::Vector3 {
-            x: 0.,
-            y: 1.0,
-            z: 0.,
-        });
-        sphere_model.set_scale(0.1);
-
-        let models = vec![sponza, sphere_model];
+        let models = vec![sponza];
 
         let mut last_render_time = std::time::Instant::now();
 
@@ -157,12 +148,15 @@ fn main() {
 
                 light_t += secs * 0.5;
 
-                let light_loc = {
-                    let x = 1.0 * light_t.cos();
-                    let z = 2.0 * light_t.sin();
-                    [x as f32, 15.0, z as f32]
-                };
+                // let light_loc = {
+                //     let x = 1.0 * light_t.cos();
+                //     let z = 2.0 * light_t.sin();
+                //     [x as f32, 15.0, z as f32]
+                // };
                 //println!("{:?}", light_loc);
+
+                let mut light_loc = cgmath::vec3(0f32, 0f32, 1000f32);
+                light_loc = light_loc / light_loc.magnitude();
 
                 let repaint_after = egui_glium.run(state.get_display_ref(), |egui_ctx| {
                     egui::Window::new("Shadow map")
@@ -200,14 +194,14 @@ fn main() {
                 {
                     state.update(dt);
 
-                    renderer.render_shadows(state.get_display_ref(), &models, &light_loc.into());
+                    //renderer.render_shadows(state.get_display_ref(), &models, &light_loc.into());
 
                     use glium::Surface;
 
                     // draw things behind egui here
                     let mut target = state.get_display_ref().draw();
 
-                    let color = egui::Rgba::from_rgb(0.53, 0.81, 0.92);
+                    let color = egui::Rgba::from_rgb(0.0, 0.0, 0.0);
                     target.clear_color_and_depth((color[0], color[1], color[2], color[3]), 1.0);
 
                     renderer.render_scene(&mut target, &state.camera, &models, &light_loc.into());

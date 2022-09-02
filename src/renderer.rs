@@ -1,13 +1,15 @@
+use cgmath::InnerSpace;
 use glium::uniforms::SamplerWrapFunction;
 
 use crate::{
     camera::Camera, model::Model, model_render_system::ModelRenderSystem,
-    shadow_render_system::ShadowRenderSystem,
+    shadow_render_system::ShadowRenderSystem, sky_render_system::SkyRenderSystem,
 };
 
 pub struct Renderer {
     model_render_system: ModelRenderSystem,
     shadow_render_system: ShadowRenderSystem,
+    sky_render_system: SkyRenderSystem,
     scene_draw_params: glium::DrawParameters<'static>,
     shadow_draw_params: glium::DrawParameters<'static>,
 }
@@ -37,11 +39,14 @@ impl Renderer {
 
         let shadow_render_system = ShadowRenderSystem::new(display);
 
+        let sky_render_system = SkyRenderSystem::new(display);
+
         Self {
             model_render_system,
             scene_draw_params,
             shadow_draw_params,
             shadow_render_system,
+            sky_render_system,
         }
     }
 
@@ -135,12 +140,29 @@ impl Renderer {
 
         //println!("texel size {:?} bias {:?}", texel_size, shadow_bias);
 
+        self.sky_render_system.draw(
+            target,
+            light_position,
+            &view_proj,
+            &[
+                camera.get_view_position().x,
+                camera.get_view_position().y,
+                camera.get_view_position().z,
+            ],
+            cgmath::Vector3::new(
+                camera.get_view_position().x,
+                camera.get_view_position().y,
+                camera.get_view_position().z,
+            )
+            .magnitude(),
+        );
+
         for model in models {
             for mesh_object in model.get_mesh_objects() {
                 let uniforms = &uniform! {
                     model: model.get_transform(),
                     lightColor: [1f32, 0.9f32, 0.66f32],
-                    ambientIntensity: 0.1f32,
+                    ambientIntensity: 0.3f32,
                     lightPosition: *light_position,
                     view_proj: view_proj,
                     tex: mesh_object.get_diffuse_texture(),
@@ -148,7 +170,10 @@ impl Renderer {
                     light_space_matrix: light_matrix,
                     texelSize: texel_size,
                     frustumSize: frustum_size,
-                    distribution: self.shadow_render_system.get_poisson_disk_texture()
+                    distribution: self.shadow_render_system.get_poisson_disk_texture(),
+                    ambientColor: *mesh_object.get_ambient_color(),
+                    diffuseColor: *mesh_object.get_diffuse_color(),
+                    specularColor: *mesh_object.get_specular_color()
                 };
 
                 target

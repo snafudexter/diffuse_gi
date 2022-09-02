@@ -1,5 +1,6 @@
 use fast_poisson::Poisson2D;
 use glium::{texture::SrgbTexture2d, GlObject};
+use log::info;
 
 pub struct ShadowRenderSystem {
     texture: glium::texture::DepthTexture2d,
@@ -9,7 +10,7 @@ pub struct ShadowRenderSystem {
     poisson_disk: glium::texture::SrgbTexture1d
 }
 
-pub const SHADOW_SIZE: u32 = 1024 * 2;
+pub const SHADOW_SIZE: u32 = 1024;
 
 impl ShadowRenderSystem {
     pub fn new(display: &glium::Display) -> Self {
@@ -25,6 +26,8 @@ impl ShadowRenderSystem {
         let program =
             glium::Program::from_source(display, &vertex_shader_src, &fragment_shader_src, None)
                 .unwrap();
+
+        println!("finished compiling shadow shaders");
 
         let w = 20.0;
 

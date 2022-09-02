@@ -473,6 +473,7 @@ dependencies = [
  "fast_poisson",
  "glium",
  "image",
+ "log",
  "obj",
  "pollster",
 ]
