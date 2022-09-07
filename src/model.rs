@@ -13,6 +13,9 @@ implement_vertex!(Vertex, position, tex_coord, normal);
 pub struct MeshObject {
     vertices: glium::VertexBuffer<Vertex>,
     diffuse_texture: glium::texture::SrgbTexture2d,
+    ambient_color: [f32; 3],
+    diffuse_color: [f32; 3],
+    specular_color: [f32; 3],
 }
 
 impl MeshObject {
@@ -22,6 +25,18 @@ impl MeshObject {
 
     pub fn get_diffuse_texture(&self) -> &glium::texture::SrgbTexture2d {
         &self.diffuse_texture
+    }
+
+    pub fn get_ambient_color(&self) -> &[f32; 3] {
+        &self.ambient_color
+    }
+
+    pub fn get_diffuse_color(&self) -> &[f32; 3] {
+        &self.diffuse_color
+    }
+
+    pub fn get_specular_color(&self) -> &[f32; 3] {
+        &self.specular_color
     }
 }
 
@@ -33,7 +48,6 @@ pub struct Model {
 
 impl Model {
     pub fn new(path: &str, display: &Display) -> Self {
-        println!("loading models");
         let mut obj = Obj::load(path).unwrap();
         obj.load_mtls().unwrap();
 
@@ -117,6 +131,10 @@ impl Model {
                     glium::texture::SrgbTexture2d::empty(display, 1, 1).unwrap();
                 let base_path = "./Sponza/".to_owned();
 
+                let mut ambient_color: [f32; 3] = [0f32; 3];
+                let mut diffuse_color: [f32; 3] = [0f32; 3];
+                let mut specular_color: [f32; 3] = [0f32; 3];
+
                 match group.material.unwrap() {
                     obj::ObjMaterial::Ref(_) => todo!(),
                     obj::ObjMaterial::Mtl(material) => {
@@ -136,12 +154,27 @@ impl Model {
                             }
                             None => {}
                         };
+                        match material.ka.as_ref() {
+                            Some(ka) => ambient_color = *ka,
+                            None => {}
+                        }
+                        match material.kd.as_ref() {
+                            Some(kd) => diffuse_color = *kd,
+                            None => {}
+                        }
+                        match material.ks.as_ref() {
+                            Some(ks) => specular_color = *ks,
+                            None => {}
+                        }
                     }
                 };
 
                 let object: MeshObject = MeshObject {
                     vertices: glium::VertexBuffer::new(display, &vertices).unwrap(),
                     diffuse_texture,
+                    ambient_color,
+                    diffuse_color,
+                    specular_color,
                 };
 
                 objects.push(object);

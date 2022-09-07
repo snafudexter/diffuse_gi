@@ -15,6 +15,9 @@ uniform float ambientIntensity;
 uniform float numBlockerSearchSamples = 16;
 uniform float uvLightSize = 4;
 uniform float frustumSize;
+uniform vec3 ambientColor;
+uniform vec3 diffuseColor;
+uniform vec3 specularColor;
 
 in vec2 fragTexCoord;
 in vec3 surfaceNormal;
@@ -107,8 +110,7 @@ void main() {
     if(samplerSize.x > 1 && samplerSize.y > 1 && textureSample.a < 0.1)
         discard;
 
-    vec4 AmbientColor = textureSample * vec4(lightColor, 1.0) *
-        ambientIntensity;
+    vec4 AmbientColor = vec4(ambientColor, 1.0) * ambientIntensity;
 
     vec3 toLightVector = lightPosition - worldPos.xyz;
     vec3 unitNormal = normalize(surfaceNormal);
@@ -117,7 +119,12 @@ void main() {
     float nDotL = dot(unitNormal, unitLightPosition);
     float brightness = max(nDotL, 0.0);
 
-    vec4 DiffuseColor = textureSample * vec4(lightColor, 1.0) * brightness;
+    vec4 DiffuseColor = vec4(lightColor, 1.0) * vec4(diffuseColor, 1.0) * brightness;
+
+    if(samplerSize.x > 1 && samplerSize.y > 1) {
+        AmbientColor += textureSample * ambientIntensity;
+        DiffuseColor *= textureSample;
+    }
 
     float bias = max(0.05 * (1.0 - dot(unitNormal, unitLightPosition)), 0.001);
 

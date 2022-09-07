@@ -148,7 +148,10 @@ impl Renderer {
                     light_space_matrix: light_matrix,
                     texelSize: texel_size,
                     frustumSize: frustum_size,
-                    distribution: self.shadow_render_system.get_poisson_disk_texture()
+                    distribution: self.shadow_render_system.get_poisson_disk_texture(),
+                    ambientColor: *mesh_object.get_ambient_color(),
+                    diffuseColor: *mesh_object.get_diffuse_color(),
+                    specularColor: *mesh_object.get_specular_color()
                 };
 
                 target
